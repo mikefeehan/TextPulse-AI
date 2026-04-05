@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd /d apps\\web && npm run dev"],
+      "port": 3000
+    },
+    {
+      "name": "api",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "cd /d apps\\api && python -m uvicorn app.main:app --reload --port 8000"],
+      "port": 8000
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+# Node / Next
+node_modules/
+.next/
+out/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+# Local data
+uploads/
+*.db
+*.sqlite
+*.sqlite3
+smoke.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Claude Code local state
+.claude/settings.local.json
+
+# Stray scratch
+write-test.txt
+
+# Python build metadata
+*.egg-info/
+
+# Dev server logs
+*.log
