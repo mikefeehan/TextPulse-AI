@@ -102,6 +102,8 @@ class Contact(Base):
     photo_url: Mapped[str | None] = mapped_column(String(512), nullable=True)
     profile_generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     profile_data: Mapped[dict | None] = mapped_column(EncryptedJSON(), nullable=True)
+    analysis_status: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    analysis_error: Mapped[str | None] = mapped_column(String(512), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow)
 

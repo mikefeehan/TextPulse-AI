@@ -343,16 +343,72 @@ export async function coachReply(
 export async function regenerateAnalysis(
   token: string,
   contactId: string,
-): Promise<ContactDetail["profile"]> {
+): Promise<{ status: string; message: string }> {
   try {
-    return await request<ContactDetail["profile"]>(
+    return await request<{ status: string; message: string }>(
       `/api/contacts/${contactId}/analysis/regenerate`,
       { method: "POST" },
       token,
     );
   } catch {
-    return demoState.details[contactId]?.profile ?? demoState.details["c-ava"].profile;
+    return { status: "completed", message: "Demo mode." };
   }
+}
+
+export async function getAnalysisStatus(
+  token: string,
+  contactId: string,
+): Promise<{ status: string; error: string | null; has_profile: boolean; profile_generated_at: string | null }> {
+  return request(
+    `/api/contacts/${contactId}/analysis/status`,
+    {},
+    token,
+  );
+}
+
+export interface ScanResult {
+  message_count: number;
+  contact_message_count: number;
+  user_message_count: number;
+  tier: { name: string; label: string; max_messages: number; price_usd: number };
+  date_range: { start: string | null; end: string | null };
+  duration_days: number;
+  top_topics: string[];
+  moments: string[];
+  behavioral_snapshot: {
+    investment_asymmetry: number;
+    investment_verdict: string;
+    ghost_risk: number;
+    ghost_risk_factors: string[];
+    fade_detected: boolean;
+    fade_signals: string[];
+    worth_your_time: string;
+    messages_per_active_day: number;
+    contact_initiation_rate: number;
+    length_asymmetry: number;
+  };
+}
+
+export async function scanAnalysis(
+  token: string,
+  contactId: string,
+): Promise<ScanResult> {
+  return request<ScanResult>(
+    `/api/contacts/${contactId}/analysis/scan`,
+    {},
+    token,
+  );
+}
+
+export async function createCheckoutSession(
+  token: string,
+  contactId: string,
+): Promise<{ checkout_url: string; tier: { name: string; label: string; price_usd: number } }> {
+  return request(
+    `/api/contacts/${contactId}/analysis/checkout`,
+    { method: "POST" },
+    token,
+  );
 }
 
 export async function createPasteImport(

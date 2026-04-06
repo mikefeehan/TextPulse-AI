@@ -19,6 +19,7 @@ import {
   confirmImport,
   createPasteImport,
   createQaSession,
+  getAnalysisStatus,
   getContact,
   getImportStatus,
   getVaultCategory,
@@ -187,12 +188,29 @@ export function ContactWorkspace({ contactId }: { contactId: string }) {
     }
     setWorking("analysis");
     try {
-      const profile = await regenerateAnalysis(token, detail.id);
-      setDetail((current) => (current ? { ...current, profile } : current));
-      toast.success("Profile refreshed");
+      await regenerateAnalysis(token, detail.id);
+      toast.success("Analysis queued. This takes a few minutes for large conversations.");
+      // Poll for completion, then refresh the workspace
+      const poll = setInterval(async () => {
+        try {
+          const status = await getAnalysisStatus(token, detail.id);
+          if (status.status === "completed") {
+            clearInterval(poll);
+            await refreshWorkspace(token);
+            setWorking(null);
+            toast.success("Profile read complete!");
+          } else if (status.status === "failed") {
+            clearInterval(poll);
+            setWorking(null);
+            toast.error(status.error || "Analysis failed.");
+          }
+        } catch {
+          clearInterval(poll);
+          setWorking(null);
+        }
+      }, 3000);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to refresh profile.");
-    } finally {
       setWorking(null);
     }
   }

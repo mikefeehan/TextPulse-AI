@@ -42,14 +42,18 @@ class Settings(BaseSettings):
     anthropic_allow_opus: bool = False
     anthropic_bulk_request_budget_usd: float = 0.15
     anthropic_live_request_budget_usd: float = 0.35
-    anthropic_profile_request_budget_usd: float = 0.9
+    anthropic_profile_request_budget_usd: float = 8.0
     use_demo_seed: bool = True
     imports_use_celery: bool = False
-    max_upload_size_mb: int = 150
+    max_upload_size_mb: int = 500
     import_preview_ttl_hours: int = 24
     ocr_enabled: bool = True
     inactivity_timeout_minutes: int = 30
     rate_limit_default: str = "100/minute"
+    stripe_secret_key: str | None = None
+    stripe_webhook_secret: str | None = None
+    stripe_success_url: str = "http://localhost:3000/contacts/{contact_id}?payment=success"
+    stripe_cancel_url: str = "http://localhost:3000/contacts/{contact_id}?payment=cancelled"
 
 
 @lru_cache(maxsize=1)

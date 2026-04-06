@@ -55,6 +55,7 @@ from app.schemas.contacts import (
     ViralSignals,
 )
 from app.services.analytics import build_contact_analytics
+from app.services.behavioral_intel import BehavioralFingerprint, compute_behavioral_fingerprint
 from app.services.llm import ClaudeTask, maybe_generate_json, maybe_generate_text, plan_claude_request
 from app.services.text_utils import keyword_counts
 
@@ -142,6 +143,9 @@ def scan_conversation(
     top_topics = [word for word, _ in keywords.most_common(8)]
     tier = get_pricing_tier(len(messages))
 
+    # Compute behavioral fingerprint (the moat)
+    fingerprint = compute_behavioral_fingerprint(messages)
+
     # Pick 3 emotionally-loaded moments for the teaser
     moments = _pick_teaser_moments(messages, contact.name, quality_mode)
 
@@ -157,10 +161,17 @@ def scan_conversation(
         "duration_days": (messages[-1].timestamp - messages[0].timestamp).days if len(messages) > 1 else 0,
         "top_topics": top_topics,
         "moments": moments,
-        "balance": {
-            "contact_avg_length": round(_avg_length(messages, SenderType.CONTACT), 1),
-            "user_avg_length": round(_avg_length(messages, SenderType.USER), 1),
-            "contact_initiation_share": round(_contact_initiation_share(messages), 2),
+        "behavioral_snapshot": {
+            "investment_asymmetry": fingerprint.investment_asymmetry,
+            "investment_verdict": fingerprint.investment_verdict,
+            "ghost_risk": fingerprint.ghost_risk,
+            "ghost_risk_factors": fingerprint.ghost_risk_factors,
+            "fade_detected": fingerprint.fade_detected,
+            "fade_signals": fingerprint.fade_signals,
+            "worth_your_time": fingerprint.worth_your_time,
+            "messages_per_active_day": round(fingerprint.messages_per_active_day, 1),
+            "contact_initiation_rate": round(fingerprint.contact_initiation_rate, 3),
+            "length_asymmetry": round(fingerprint.length_asymmetry, 2),
         },
     }
 
@@ -270,6 +281,9 @@ def generate_contact_profile(
     timeline = _build_timeline(messages, analytics)
     freshness = _freshness(messages, imports)
 
+    # Compute behavioral fingerprint (the moat)
+    fingerprint = compute_behavioral_fingerprint(messages)
+
     # Build heuristic baseline profile
     profile = _build_heuristic_profile(
         contact=contact,
@@ -293,6 +307,7 @@ def generate_contact_profile(
         messages=messages,
         analytics=analytics,
         top_topics=top_topics,
+        fingerprint=fingerprint,
         quality_mode=quality_mode,
     )
 
@@ -568,6 +583,7 @@ def _apply_windowed_reading(
     messages: list[Message],
     analytics,
     top_topics: list[str],
+    fingerprint: BehavioralFingerprint,
     quality_mode: AIQualityMode | None,
 ) -> None:
     """
@@ -622,6 +638,7 @@ def _apply_windowed_reading(
             signal_messages=formatted_messages,
             top_topics=top_topics,
             analytics_stats=analytics.stats,
+            behavioral_data=fingerprint.to_dict(),
         ),
         task=ClaudeTask.PROFILE_SYNTHESIS,
         max_tokens=3000,
@@ -668,6 +685,7 @@ def _build_synthesis_user_prompt(
     signal_messages: str,
     top_topics: list[str],
     analytics_stats: dict[str, Any],
+    behavioral_data: dict[str, Any] | None = None,
 ) -> str:
     schema = (
         "Return JSON with these keys:\n"
@@ -694,13 +712,35 @@ def _build_synthesis_user_prompt(
         "advance_moves: [strings], two_week_strategy: [strings], gift_ideas: [strings]}\n"
     )
 
+    behavioral_section = ""
+    if behavioral_data:
+        predictions = behavioral_data.get("predictions", {})
+        behavioral_section = (
+            f"\n=== BEHAVIORAL INTELLIGENCE (computed from structured data — ground truth) ===\n"
+            f"Investment asymmetry: {predictions.get('investment_asymmetry', 0)} "
+            f"({predictions.get('investment_verdict', 'unknown')})\n"
+            f"Ghost risk: {predictions.get('ghost_risk', 0)}% — "
+            f"{', '.join(predictions.get('ghost_risk_factors', [])) or 'no risk factors detected'}\n"
+            f"Fade detected: {'YES — ' + ', '.join(predictions.get('fade_signals', [])) if predictions.get('fade_detected') else 'No'}\n"
+            f"Worth your time: {predictions.get('worth_your_time', 'unknown')}\n"
+            f"Double-text rate — them: {behavioral_data.get('double_texting', {}).get('contact_rate', 0):.1%}, "
+            f"you: {behavioral_data.get('double_texting', {}).get('user_rate', 0):.1%}\n"
+            f"Initiation — them: {behavioral_data.get('initiation', {}).get('contact_rate', 0):.1%}, "
+            f"you: {1 - behavioral_data.get('initiation', {}).get('contact_rate', 0):.1%}\n"
+            f"Late-night ratio — them: {behavioral_data.get('timing', {}).get('contact_late_night_ratio', 0):.1%}, "
+            f"you: {behavioral_data.get('timing', {}).get('user_late_night_ratio', 0):.1%}\n"
+            f"Silence breaker: them {behavioral_data.get('gaps', {}).get('contact_silence_break_rate', 0):.1%} of the time\n"
+            f"Biggest gap: {behavioral_data.get('gaps', {}).get('biggest_gap_days', 0)} days\n"
+        )
+
     return (
         f"Contact: {contact_name} | Relationship: {relationship_type} | "
         f"Dating mode: {'yes' if is_dating_mode else 'no'}\n"
         f"Scale: {message_count:,} messages over {duration_days} days\n"
         f"Top topics: {', '.join(top_topics[:6])}\n"
         f"Avg response time (them): {_format_response_time(analytics_stats.get('avg_contact_response_seconds', 0))}\n"
-        f"Avg response time (you): {_format_response_time(analytics_stats.get('avg_user_response_seconds', 0))}\n\n"
+        f"Avg response time (you): {_format_response_time(analytics_stats.get('avg_user_response_seconds', 0))}\n"
+        f"{behavioral_section}\n"
         f"=== CONVERSATION TIMELINE (window summaries) ===\n{window_summaries}\n\n"
         f"=== HIGH-SIGNAL MESSAGES ===\n{signal_messages}\n\n"
         f"{schema}"
