@@ -105,15 +105,8 @@ function profile(name: string, datingMode = false): ContactDetail["profile"] {
         { message_id: "m2", text: "I overthink when I'm tired, so if I get quiet that's usually why.", timestamp: "2026-02-21T22:03:00.000Z", note: "Self-awareness with guarded vulnerability." },
       ],
       metrics: {
-        big_five: {
-          openness: 71,
-          conscientiousness: 58,
-          extraversion: 64,
-          agreeableness: 61,
-          neuroticism: 49,
-        },
-        mbti_estimate: "ENFJ",
-        enneagram_estimate: "2w3",
+        message_count: 14320,
+        duration_days: 487,
       },
     },
     communication_style: {

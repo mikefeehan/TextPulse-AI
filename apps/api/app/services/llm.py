@@ -12,6 +12,7 @@ from app.schemas.common import AIQualityMode
 
 class ClaudeTask(str, Enum):
     BULK_ANALYSIS = "bulk_analysis"
+    WINDOW_SUMMARY = "window_summary"
     PROFILE_SYNTHESIS = "profile_synthesis"
     QA = "qa"
     REPLY_COACH = "reply_coach"
@@ -177,7 +178,7 @@ def _candidate_models(
     opus = settings.anthropic_model_opus
 
     match task:
-        case ClaudeTask.BULK_ANALYSIS:
+        case ClaudeTask.BULK_ANALYSIS | ClaudeTask.WINDOW_SUMMARY:
             mapping = {
                 AIQualityMode.CHEAP: [haiku],
                 AIQualityMode.BALANCED: [haiku, sonnet],
@@ -206,7 +207,7 @@ def _candidate_models(
 
 
 def _budget_cap(task: ClaudeTask, settings: Settings) -> float:
-    if task == ClaudeTask.BULK_ANALYSIS:
+    if task in (ClaudeTask.BULK_ANALYSIS, ClaudeTask.WINDOW_SUMMARY):
         return settings.anthropic_bulk_request_budget_usd
     if task == ClaudeTask.PROFILE_SYNTHESIS:
         return settings.anthropic_profile_request_budget_usd
